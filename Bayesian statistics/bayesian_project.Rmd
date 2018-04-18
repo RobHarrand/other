@@ -1,0 +1,387 @@
+---
+title: "Predicting Future Movies - A Bayesian Approach"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE, warning = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+library(BAS)
+library(MASS)
+```
+
+### Load data
+
+```{r load-data}
+load("movies.Rdata")
+```
+
+
+* * *
+
+## Part 1: Data
+
+The data is taken from IMDB (The Internet Movie Database) and Rotten Tomatoes, and represents a random sample from their archives. There is insufficient information provided to know if this randomisation was done well, so the data should be treated with caution. It is also unclear what type of movies tend to appear on these websites. If good and bad movies are not equally represented, then the sample may be biased.
+
+* * *
+
+## Part 2: Data manipulation
+
+```{r}
+#Use the 'mutate' function and 'ifelse' function to create the new variables,
+
+movies <- mutate(movies, feature_film = ifelse(movies$title_type == 'Feature Film', 'Yes', 'No'))
+movies$feature_film = as.factor(movies$feature_film)
+
+movies <- mutate(movies, drama = ifelse(movies$genre == 'Drama', 'Yes', 'No'))
+movies$drama = as.factor(movies$drama)
+
+movies <- mutate(movies, mpaa_rating_R = ifelse(movies$mpaa_rating == 'R', 'Yes', 'No'))
+movies$mpaa_rating_R = as.factor(movies$mpaa_rating_R)
+
+movies <- mutate(movies, oscar_season = ifelse(movies$thtr_rel_month %in% c(10:12), 'Yes', 'No'))
+movies$oscar_season = as.factor(movies$oscar_season)
+
+movies <- mutate(movies, summer_season = ifelse(movies$thtr_rel_month %in% c(5:8), 'Yes', 'No'))
+movies$summer_season = as.factor(movies$summer_season)
+```
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+Let's take a look at the distribution of the audience scores,
+
+```{r, fig.width=5, fig.height=5}
+hist(movies$audience_score, breaks = 100, main = "Histogram of audience scores", xlab = "Audience score")
+```
+
+This doesn't seem to show any particular structure. How about the spread of movie genres?,
+
+```{r, fig.width=5, fig.height=5}
+tab = table(movies$genre)
+tab = tab[order(-tab)]
+par(mar=c(12.1, 4.1, 4.1, 2.1))
+barplot(tab, las=2, ylab = 'No. of movies', main = 'Genre split of the data', col = 'orange')
+```
+
+There is a clear dominance of dramas.  
+
+Next let's take a look at the boxplots for the new variables (feature film, drama, 
+mpaa rating R, oscar season and summer season) vs audience score. All of these variables are binary variables, and so lends themselves to
+representation by boxplots,
+
+```{r, fig.width=8, fig.height=8}
+par(mar=c(5.1, 4.1, 4.1, 2.1))
+par(mfrow = c(2,3))
+
+boxplot(movies$audience_score ~ movies$feature_film, 
+        main = "Audience score \n vs Feature Film", ylab = "Audience score", col = c("palevioletred1", "light green"))
+
+boxplot(movies$audience_score ~ movies$drama, 
+        main = "Audience score \n vs Drama", ylab = "Audience score", col = c("palevioletred1", "light green"))
+
+boxplot(movies$audience_score ~ movies$mpaa_rating_R, 
+        main = "Audience score \n vs MPAA Rating R", ylab = "Audience score", col = c("palevioletred1", "light green"))
+
+boxplot(movies$audience_score ~ movies$oscar_season, 
+        main = "Audience score \n vs Oscar Season", ylab = "Audience score", col = c("palevioletred1", "light green"))
+
+boxplot(movies$audience_score ~ movies$summer_season, 
+        main = "Audience score \n vs Summer Season", ylab = "Audience score", col = c("palevioletred1", "light green"))
+
+p <- ggplot(movies, aes(feature_film, audience_score)) + geom_violin(aes(fill = feature_film)) + geom_boxplot(width=.2)
+
+
+```
+
+The central line on each box is the median for that sub-group. A rule-of-thumb for significance is for the medians to be outside of the inter-quartile range (the coloured section) of the neighbouring box. As you can see, only 'feature film' fits this description. We can be more rigorous with a Wilcoxon signed-rank test, which is a non-parametric hypothesis test to check for differences between groups. This is from the frequentist paradigm, but worth trying for this early, exploratory phase,
+
+```{r}
+w1 = format(wilcox.test(movies$audience_score ~ movies$feature_film)$p.value * 100, nsmall = 3)
+w2 = format(wilcox.test(movies$audience_score ~ movies$drama)$p.value * 100, nsmall = 3)
+w3 = format(wilcox.test(movies$audience_score ~ movies$mpaa_rating_R)$p.value * 100, nsmall = 3)
+w4 = format(wilcox.test(movies$audience_score ~ movies$oscar_season)$p.value * 100, nsmall = 3)
+w5 = format(wilcox.test(movies$audience_score ~ movies$summer_season)$p.value * 100, nsmall = 3)
+
+w = data.frame("Variable" = c("Feature film", "Drama", "MPAA Rating R", "Oscar Season", "Summer Season"), "p-values" = c(w1,w2,w3,w4,w5))
+colnames(w) = c("Variable", "p-value (%)")
+
+w
+```
+
+This shows that feature film and drama appear to have some significance. For completeness, let's take a quick look at the remaining categorical variables,
+
+```{r, fig.width=8, fig.height=8}
+par(mfrow = c(2,3))
+
+boxplot(movies$audience_score ~ movies$best_pic_nom,
+        main = "Audience score \n vs Best pic nomination", ylab = "Audience score", col = c("palevioletred1", "light green"))
+
+boxplot(movies$audience_score ~ movies$best_actor_win,
+        main = "Audience score \n vs Best actor win", ylab = "Audience score", col = c("palevioletred1", "light green"))
+
+boxplot(movies$audience_score ~ movies$best_actress_win,
+        main = "Audience score \n vs Best actress win", ylab = "Audience score", col = c("palevioletred1", "light green"))
+
+boxplot(movies$audience_score ~ movies$best_dir_win, 
+        main = "Audience score \n vs Best director win", ylab = "Audience score", col = c("palevioletred1", "light green"))
+
+boxplot(movies$audience_score ~ movies$top200_box,
+        main = "Audience score \n vs Top 200 box-office", ylab = "Audience score", col = c("palevioletred1", "light green"))
+```
+
+'Best picture nomination', 'top 200 box-office' and to a smaller extent, 'best director win' seem to have some difference. Finally, let's look at the numerical variables,
+
+```{r, fig.width=8, fig.height=8}
+par(mfrow = c(2,3))
+
+plot(movies$runtime, movies$audience_score, xlab = "Run time", ylab = "Audience score")
+plot(movies$thtr_rel_year, movies$audience_score, xlab = "Release year", ylab = "Audience score")
+plot(movies$imdb_rating, movies$audience_score, xlab = "IMDB Rating", ylab = "Audience score")
+plot(movies$imdb_num_votes, movies$audience_score, xlab = "No. of IMDB votes", ylab = "Audience score")
+plot(movies$critics_score, movies$audience_score, xlab = "Critics scores", ylab = "Audience score")
+```
+
+There is a clear correlation between audience score and both IMDB rating and critics score, which makes intuitive sense. We should expect these to be important in the eventual model.
+
+* * *
+
+## Part 4: Modeling
+
+First, let's create a predicative model based upon a number of variables. Note that 'runtime' has one NA value, which is removed first,
+
+```{r}
+ex = is.na(movies$runtime)
+movies_no_na = movies[!ex,]
+
+movie_model = lm(audience_score ~ feature_film + 
+                                  drama + 
+                                  runtime + 
+                                  mpaa_rating_R + 
+                                  thtr_rel_year + 
+                                  oscar_season + 
+                                  summer_season +
+                                  imdb_rating + 
+                                  imdb_num_votes + 
+                                  critics_score + 
+                                  best_pic_nom + 
+                                  best_pic_win + 
+                                  best_actor_win + 
+                                  best_actress_win + 
+                                  best_dir_win + 
+                                  top200_box, 
+                                  data = movies_no_na)
+
+s = summary(movie_model)
+s$coefficients[order(s$coefficients[,1]), decreasing = T]
+```
+
+As suspected, IMDB rating is having a dominant effect.  
+
+What about the Bayesian information criteria? ...
+
+```{r}
+BIC(movie_model)
+```
+
+Out of interest, what would automatic model selection based upon AIC (Akaike information criterion) look like? (Note that I've hidden the raw output as it was huge, and instead have just shown the ANOVA results),
+
+```{r, echo=F, results="hide"}
+k = log(length(movies$audience_score))
+st = stepAIC(movie_model, k = k)
+```
+
+```{r}
+st$anova
+```
+
+what about the final model? ...
+
+```{r}
+st
+```
+
+So this is showing that just 3 predictors; runtime, IMDB rating and Critics score can be used to make a sensible prediction.  
+
+Next let's create a Bayesian model using a uniform distribution as the prior, as I have no prior knowledge in the area of movie scores,
+
+```{r}
+bma_movies = bas.lm(audience_score ~ feature_film + 
+                                  drama + 
+                                  runtime + 
+                                  mpaa_rating_R + 
+                                  thtr_rel_year + 
+                                  oscar_season + 
+                                  summer_season +
+                                  imdb_rating + 
+                                  imdb_num_votes + 
+                                  critics_score + 
+                                  best_pic_nom + 
+                                  best_pic_win + 
+                                  best_actor_win + 
+                                  best_actress_win + 
+                                  best_dir_win + 
+                                  top200_box, 
+                                  data = movies_no_na,
+                                  prior = "BIC", 
+                                  modelprior = uniform())
+
+```
+
+The following shows the probability that each variable is included in a model,
+
+```{r}
+bma_movies
+```
+
+This shows, for example, that IMDB is always included. Next, let's look at the top 5 models,
+
+```{r}
+summary(bma_movies)
+```
+
+Notice that the top model has the same 3 predictors as found using the automatic AIC function above; runtime, IMDB rating and Critics score. The next best model with a Bayes Factor and Posterior probability almost the same as the top model uses just IMDB rating and critics score, dropping runtime.  
+Let's have a look at a visual representation of this,
+
+```{r, fig.width=5, fig.height=5}
+image(bma_movies, rotate = F)
+```
+
+Notice how dominant IMDB rating and critics score is across the possible models (black = not included).  
+
+Next, let's check the posterior means of the coefficients,
+
+```{r}
+c = coefficients(bma_movies)
+```
+
+Comparing the coefficents between the frequentist and Bayesian models,
+
+```{r, fig.width=5, fig.height=5, warning=F}
+par(mfrow = c(1,1))
+plot(s$coefficients[,1], c$postmean, log = "xy", main = "Frequentist vs Bayesian model parameter values", 
+     xlab = "Frequentist (log)", ylab = "Baysian posterior mean (log)", col = 'blue', pch = 16)
+abline(lm(s$coefficients[,1] ~ c$postmean), col = "red")
+```
+
+This shows some disagreement. Let's look at the posterior distributions of some variables of interest, namely, Runtime, IMDB Rating and Critics score. I've also included Drama as an example of a variable that isn't of particular interest,
+
+```{r, fig.width=8, fig.height=8}
+par(mfrow = c(2,2))
+plot(c, subset = c(4,9,11,3), ask=FALSE)
+```
+
+We can see high probabilities of the first 3 distributions, with only Runtime crossing zero. In contrast, Drama has a very low probability and a posterior distribution that clearly includes zero. Note also the large vertical bar for Drama, indicating a high posterior probability that the coefficient is zero.  
+
+Finally, let's check the residuals of the model,
+
+```{r fig.width=5, fig.height=5}
+plot(bma_movies, which=1, add.smooth = F)
+```
+
+This shows 3 movies that may be outliers, although they don't appear to be overly extreme, and there are only 3 out of 650 observations.  More concerning is that the plot shows some evidence of heteroscedasticity, as the residuals get larger as the prediction moves from large to small. This suggests that the model has room for improvement.
+
+* * *
+
+## Part 5: Prediction
+
+First, let's create a new, parsimonious model using just runtime, IMDB rating and Critics score,
+
+```{r}
+bma_movies_simple = bas.lm(audience_score ~ runtime + 
+                                  imdb_rating + 
+                                  critics_score,
+                                  data = movies_no_na,
+                                  prior = "BIC", 
+                                  modelprior = uniform())
+
+```
+
+For the new data, I've taken information from IMDB for the film 'Star Trek Beyond' and placed it into a data-frame,
+
+```{r}
+movies_test = data.frame(audience_score = 0,
+                         runtime = 120,
+                         imdb_rating = 7.5, 
+                         critics_score = 68)
+```
+
+
+Now let's make a prediction using HPM for the highest prediction model (this is to select the simple model that we've created, rather than take other approaches such as averaging the alternative models),
+
+```{r, fig.width=5, fig.height=5}
+
+#Make a prediction,
+bma_movies_pred_simple = predict(bma_movies_simple, newdata = movies_test, se.fit=TRUE, estimator = 'HPM')
+bma_movies_pred_simple$fit[1]
+
+rotten = 84
+imdb = 7.5
+
+par(mfrow = c(1,1))
+plot(movies$imdb_rating, movies$audience_score, xlim = c(0,10), ylim = c(0,100), 
+     col = 'black', main = "IMDB Rating vs Audience Score", xlab = "IMDB Rating", ylab = "Audience Score", pch=16)
+
+points(x = imdb, y = bma_movies_pred_simple$fit[1], col = 'red', pch = 19, cex = 2.5)
+points(x = imdb, y = rotten, col = 'green', pch = 19, cex = 2.5)
+```
+
+This plot shows IMDB score vs audience score, the predicted score (in red) and the actual score taken from Rotten Tomartoes (in green).  
+
+Now let's work out the credible intervals for the prediction,
+
+```{r, results='hide'}
+ci = confint(bma_movies_pred_simple, estimator = 'HPM')
+opt_hpm = which.max(bma_movies_pred_simple$fit)
+```
+
+```{r}
+ci[opt_hpm,]
+```
+
+One final thing to look at. The question here is 'what attributes make a movie popular?', and we've ended up with a model that uses the IMDB rating and critics score. However, they are not attributes intrinsic to the movie. Instead, *attributes intrinsic to the movie lead to the IMDB and critics scores*. Therefore, it could be argued that these should be left out of the model. That would instead give the following,
+
+```{r, fig.width=5, fig.height=5}
+bma_movies_features = bas.lm(audience_score ~ feature_film + 
+                                  drama + 
+                                  runtime + 
+                                  mpaa_rating_R + 
+                                  thtr_rel_year + 
+                                  oscar_season + 
+                                  summer_season +
+                                  best_pic_nom + 
+                                  best_pic_win + 
+                                  best_actor_win + 
+                                  best_actress_win + 
+                                  best_dir_win,
+                                  data = movies_no_na,
+                                  prior = "BIC", 
+                                  modelprior = uniform())
+
+
+image(bma_movies_features, rotate = F)
+```
+
+Now we see actual movie attributes dominating, such as feature film, drama and runtime. This argument could be extended further by asking 'is a best picture nomination what makes a movie popular, or does a popular movie lead to a best picture nomination?'
+
+* * *
+
+## Part 6: Conclusion
+
+We've created several new variables for the movies dataset, and then looked at frequentist and Bayesian models created using the data. In conclusion, many of the variables have little influence on the final model, including all the new variables created. In the end, just the IMDB rating, critics score and runtime were needed to create a simple, effective model (note that the first two will almost certainly have a degree of colinearity).  
+
+The sample appears to be a reasonable representation of the general catalogue of movies that exist. However, one shortcoming is in the range of genres. The largest category by far is Drama, with Sci-fi having just 9 movies. Given that this dataset spans the period of 1970 to 2014, that's about one sci-fi movie for every five years. A better balance of genres would potentially make for better predictions.  
+
+The overall size of the database could also be increased, as-well-as having more movies from foreign markets.  
+
+To further this work, I would suggest digging deeper into the precise nature of the question in order to refine the attributes that are used. Having a model that correctly predicts movie score based upon variables that aren't intrinsic to the movie, but are instead features created by the movie itself, such as critics score, would not easily allow movie producers to write and design new movies that ended up being popular.

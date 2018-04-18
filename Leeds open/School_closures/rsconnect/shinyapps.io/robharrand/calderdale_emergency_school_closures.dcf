@@ -1,0 +1,12 @@
+name: calderdale_emergency_school_closures
+title: Calderdale Emergency School Closures
+username:
+account: robharrand
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 294254
+bundleId: 1255028
+url: https://robharrand.shinyapps.io/calderdale_emergency_school_closures/
+when: 1520346059.7149
+asMultiple: FALSE
+asStatic: FALSE

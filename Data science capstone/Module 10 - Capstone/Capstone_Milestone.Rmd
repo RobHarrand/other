@@ -1,0 +1,299 @@
+---
+title: "Coursera Capstone - Milestone Report"
+author: "RH"
+date: "17 March 2016"
+output: html_document
+---
+
+## Executive Summary
+
+The aim of this report is to demonstrate that the files have been successfully downloaded, cleaned, manipulated and explored. The report concludes with some thoughts on how the next stages of the project could proceed.  
+
+## Read in the relevent packages
+
+```{r, message=F, warning=F}
+library("tm")
+library("readr")
+library('stringi')
+library("wordcloud")
+library("RWeka")
+```
+
+
+## Read in the data
+
+First, the three English data files are read in. Two different functions are used here as the raw text files contain some odd content that causes a few issues. By using both functions (along with a tweak to one of the parameters for the tweets file) all three are read in successfully.
+
+```{r}
+en_blogs = read_lines("texts/en_US/en_US.blogs.txt")
+en_tweets = readLines("texts/en_US/en_US.twitter.txt", skipNul = T)
+en_news = read_lines("texts/en_US/en_US.news.txt")
+```
+
+## Basic exploration
+
+How do these files look in their starting form?  
+
+```{r}
+blogs_l = length(en_blogs)
+news_l = length(en_news)
+tweets_l = length(en_tweets)
+```
+
+
+The lengths of the files in terms of number of lines are `r blogs_l`, `r news_l` and `r tweets_l` for the blogs, news and tweets, respectively.
+
+
+```{r}
+blogs_s = format(object.size(en_blogs), units = "Mb")
+news_s = format(object.size(en_news), units = "Mb")
+tweets_s = format(object.size(en_tweets), units = "Mb")
+
+blogs_w = stri_flatten(en_blogs, collapse =" ")
+blogs_w = vapply(strsplit(blogs_w, "\\W+"), length, integer(1))
+
+news_w = stri_flatten(en_news, collapse =" ")
+news_w = vapply(strsplit(news_w, "\\W+"), length, integer(1))
+
+tweets_w = stri_flatten(en_tweets, collapse =" ")
+tweets_w = vapply(strsplit(tweets_w, "\\W+"), length, integer(1))
+```
+
+The file sizes are `r blogs_s`, `r news_s` and `r tweets_s` for the blogs, news and tweets, respectively. The numbers of words is `r blogs_w`, `r news_w` and `r tweets_w` for the blogs, news and tweets, respectively. In table format, we have the following,
+
+```{r}
+table = data.frame(c("en_blogs.txt", "en_news", "en_tweets"))
+table$size = c(blogs_s, news_s, tweets_s)
+table$lines = c(blogs_l/1000, news_l/1000, tweets_l/1000)
+table$words = c(blogs_w/1000, news_w/1000, tweets_w/1000)
+colnames(table) = c("File", "Size", "No. lines (k)", "No. words (k)")
+table
+```
+
+
+What is clear is that these files are pretty large, and consequent manipulation could take a standard PC a considerable amount of time. Couple that with the fact that according to the [Oxford English Dictionary](http://www.oxforddictionaries.com/words/the-oec-facts-about-the-language), you only require around 7,000 lemmas (the base form of a word) to account for approximately 90% of the English dictionary, then limiting the data to a smaller sub-sample should suffice. For the basic work done at this stage of the project, 1% has been used. Even this tiny proportion seems to give some insightful results.
+
+```{r}
+set.seed(100) #Ensure reproducible results
+prop = 0.01 #Set the proportion to sample
+
+en_blogs_sample = sample(en_blogs, (length(en_blogs)*prop)) #Get a sample
+en_tweets_sample = sample(en_tweets, (length(en_tweets)*prop)) #Get a sample
+en_news_sample = sample(en_news, (length(en_news)*prop)) #Get a sample
+
+en_blogs_sample = iconv(en_blogs_sample, "latin1", "ASCII", "")  #Ensure correct formatting
+en_tweets_sample = iconv(en_tweets_sample, "latin1", "ASCII", "")  #Ensure correct formatting
+en_news_sample = iconv(en_news_sample, "latin1", "ASCII", "")  #Ensure correct formatting
+
+rm(en_blogs) #Remove original, larger file
+rm(en_tweets) #Remove original, larger file
+rm(en_news) #Remove original, larger file
+```
+
+
+## Create the Corpus and perform some tidying
+
+The 'tm' package is used to create the corpus. This package comes with several very useful text-tidying functions.
+
+
+```{r}
+all_sample = c(en_blogs_sample, en_tweets_sample, en_news_sample) #Merge the sample files
+all_sample_corpus = Corpus(VectorSource(list(all_sample))) #Create the corpus
+
+rm(en_blogs_sample) #Remove the character vector
+rm(en_tweets_sample) #Remove the character vector
+rm(en_news_sample) #Remove the character vector
+rm(all_sample) #Remove the character vector
+```
+
+What sort of tidying should be performed? The options are considerable. First, let's remove any swearwords. This is done by using the tm_map function with the 'removewords' function, along with a file of swearwords obtained from Google,
+
+
+```{r}
+swearwords = read.delim("swearWords.txt", sep = "\n", header = F) #Load in the file
+all_sample_corpus = tm_map(all_sample_corpus, removeWords, swearwords$V1) #Remove from the corpus
+rm(swearwords) #Remove the file
+```
+
+What next? I have opted to remove punctuation, convert to lowercase, remove numbers and remove whitespaces. I have personally decided not to stem the corpus (converting to a word's base form) or to remove stop words (the most common words in a language) as both of these could lead to nonsensical sentences when making predictions,
+
+```{r}
+all_sample_corpus = tm_map(all_sample_corpus, removePunctuation)
+all_sample_corpus = tm_map(all_sample_corpus, content_transformer(tolower))
+all_sample_corpus = tm_map(all_sample_corpus, removeNumbers) 
+all_sample_corpus = tm_map(all_sample_corpus, stripWhitespace)
+```
+
+## Further exploration
+
+We now have a tidied corpus. A useful next step is to turn this into a Document Term Matrix. This simply splits the text and shows the frequency of terms in the corpus.
+
+```{r}
+dtm = DocumentTermMatrix(all_sample_corpus)
+```
+
+Now that that's done, let's take a look at, say, the first 20 words,
+
+```{r}
+head(Terms(dtm), 20)
+```
+
+These are clearly nonsense. Any efficient prediction algorithm will need to only focus on the most common words; 'most' being defined by a sensible frequency threshold. Let's take a look at some of the most frequently occurring words,
+
+```{r}
+freq = colSums(as.matrix(dtm))/1000 #Work out the frequencies
+ordered = order(freq,decreasing=TRUE) #Order the items
+
+par(mar=c(5.1, 4.1 ,4.1 ,2.1)) #Tweak the margins of the plot
+
+barplot(freq[head(ordered, 20)], col = 'red', main = "The 20 most common words in the corpus", 
+        las=2, ylab = "Frequency (thousands)", ylim = c(0,50))
+```
+
+This seems to make sense, with words like 'the' and 'and' being the most frequent.  
+
+A more modern way to present this is with a wordcloud. As always, there is a package to help (the appropriately named 'wordcloud'). One of the parameters for wordcloud is the minimum frequency of the word. If we want to display the same 20 as in the barplot above, we need to know how many occurrences of those words there are,
+
+```{r}
+freq[head(ordered, 20)]
+```
+
+This shows that a cut-off of 3 would work (recall the units here are thousands of words). However, it may look a little feeble with only 20 words. Therefore, this will be increased to 100. Checking the cut-off,
+
+```{r}
+freq[head(ordered, 100)]
+```
+
+Shows that 0.88 should work,
+
+```{r}
+set.seed(100) #Ensure reproducible results
+wordcloud(names(freq),freq, min.freq=0.88,colors=brewer.pal(4, "Set1"), scale=c(8,0.8))
+```
+
+## Generating NGrams
+
+The standard way to model a corpus is to use ngrams. These break a string of text down into different chunks, where the size of the chunk corresponds to the 'n' in the term 'ngram'. For example, a 2gram (or bigram) of the sentence "The brown fox slept" would be "The brown", "brown fox", and "fox slept". 
+
+Why do this? The idea is related to the Markov assumption, something that will be used later for making next-word predictions. In everyday language, the focus of a sentence could be several words away from the sentence end. For example (borrowing an example from the Coursera NLP course) the sentence "The computer which I had just put into the machine room on the fifth floor crashed" has 'computer' as the main subject of the sentence. The Markov assumption states that we can estimate the probability of the next word not by taking into account all preceding words, but instead by just the last one or few. This is where the ngram model comes in.  
+
+The ngrams are created using the RWeka package. Below this package is used to create 1, 2, 3, 4 and 5-grams,
+
+
+```{r, echo=F}
+rm(table)
+rm(blogs_l)
+rm(blogs_w)
+rm(blogs_s)
+rm(news_l)
+rm(news_w)
+rm(news_s)
+rm(tweets_l)
+rm(tweets_w)
+rm(tweets_s)
+rm(dtm)
+rm(ordered)
+rm(freq)
+rm(prop)
+```
+
+```{r}
+OnegramTokenizer = function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+dtm = DocumentTermMatrix(all_sample_corpus, control = list(tokenize = OnegramTokenizer))
+
+TwogramTokenizer = function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+dtm2 = DocumentTermMatrix(all_sample_corpus, control = list(tokenize = TwogramTokenizer))
+
+ThreegramTokenizer = function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+dtm3 = DocumentTermMatrix(all_sample_corpus, control = list(tokenize = ThreegramTokenizer))
+
+FourgramTokenizer = function(x) NGramTokenizer(x, Weka_control(min = 4, max = 4))
+dtm4 = DocumentTermMatrix(all_sample_corpus, control = list(tokenize = FourgramTokenizer))
+
+FivegramTokenizer = function(x) NGramTokenizer(x, Weka_control(min = 5, max = 5))
+dtm5 = DocumentTermMatrix(all_sample_corpus, control = list(tokenize = FivegramTokenizer))
+```
+
+Let's take a look at some random samples from each one, First, the unigrams,
+
+```{r}
+set.seed(100)
+head(sample(Terms(dtm)))
+```
+
+Bigrams,
+
+```{r}
+head(sample(Terms(dtm2)))
+```
+
+Trigrams,
+
+```{r}
+head(sample(Terms(dtm3)))
+```
+
+4-grams,
+
+```{r}
+head(sample(Terms(dtm4)))
+```
+
+And finally, 5-grams,
+
+```{r}
+head(sample(Terms(dtm5)))
+```
+
+Next, let's look at the 20 most common from each (not including unigrams, as we did that previously when looking at individual word frequencies),
+
+```{r}
+freq2 = colSums(as.matrix(dtm2))
+freq3 = colSums(as.matrix(dtm3))
+freq4 = colSums(as.matrix(dtm4))
+freq5 = colSums(as.matrix(dtm5))
+
+ord2 = order(freq2,decreasing=TRUE)
+ord3 = order(freq3,decreasing=TRUE)
+ord4 = order(freq4,decreasing=TRUE)
+ord5 = order(freq5,decreasing=TRUE)
+
+barplot(freq2[head(ord2, 20)], col = 'blue', main = "The 20 most common words 2grams", 
+        las=2, ylab = "Frequency (thousands)")
+
+par(mar=c(8, 4.1 ,4.1 ,2.1))
+barplot(freq3[head(ord3, 20)], col = 'green', main = "The 20 most common words 3grams", 
+        las=2, ylab = "Frequency (thousands)")
+
+par(mar=c(10, 4.1 ,4.1 ,2.1))
+barplot(freq4[head(ord4, 20)], col = 'orange', main = "The 20 most common words 4grams", 
+        las=2, ylab = "Frequency (thousands)")
+
+par(mar=c(12, 4.1 ,4.1 ,2.1))
+barplot(freq5[head(ord5, 20)], col = 'purple', main = "The 20 most common words 5grams", 
+        las=2, ylab = "Frequency (thousands)")
+```
+
+##What's next?
+
+Beyond the loading, cleaning and 'ngramming' (modelling) of the corpus, the next steps are expected to be along the lines of,
+
+- Move beyond using such a small sub-sample of the original data
+- Build a predictive model. Exactly how to do this is not yet known, however, I expect it will use the ngrams and the Markov assumption as its foundation. In principle, I expect the model to take a word or phrase entered by a user, search the 5grams for a match, and then see what the next word should be based upon the frequency of the word occurring after that entered by the user. If no match is found in the 5grams, move on to 4grams, etc. If no match is found, I expect something crude will be needed based upon the simple 1gram list
+- Figure out how to handle words entered by the user that aren't recognised. Perhaps a 'best guess' based upon the spelling?
+- Once the basic model is working, explore more sophisticated techniques (I don't know what these are, but I'm sure they'll exist!)
+- Finally, convert the resultant model into a ShinyApp, along with relevant documentation
+
+
+##Appendix - Useful links
+
+The following sources of information were used in the writing of this report,
+
+- [A gentle introduction to text mining using R](https://eight2late.wordpress.com/2015/05/27/a-gentle-introduction-to-text-mining-using-r/)
+
+- [Coursera NPL Course, an introduction to ngrams](https://class.coursera.org/nlp/lecture/14)
+
+- [Text Mining Infrastructure in R](https://www.jstatsoft.org/article/view/v025i05)
+
+- [CRAN Task View: Natural Language Processing](https://cran.r-project.org/web/views/NaturalLanguageProcessing.html)
+

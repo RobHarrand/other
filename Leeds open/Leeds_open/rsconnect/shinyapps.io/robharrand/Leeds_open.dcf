@@ -1,0 +1,11 @@
+name: Leeds_open
+title: Leeds_open
+account: robharrand
+server: shinyapps.io
+appId: 209830
+bundleId: 963441
+url: https://robharrand.shinyapps.io/Leeds_open/
+when: 1504265649.07623
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: AAACM.csv|All_Middle_Data.xls|CancerAllAgesMILL.csv|CHDAllAgesMILL.csv|COPDAllAgesMILL.csv|DiabetesAllAgesMILL.csv|leeds_msoa.csv|leeds_open1.R|msoa_2011_pop_cent.csv|names.csv|Obesity16plusMILL.csv|Smoking16plusMILL.csv|U75CancerMortality.csv|U75CirculatoryMortality.csv|U75RespiratoryMortality.csv

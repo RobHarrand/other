@@ -1,0 +1,17 @@
+{
+    "contents" : "############################\n#R code for Data Science Specialisation Capstone - ui.R\n#Completed 19/04/16\n#Created by RH\n############################\n\nlibrary(shinythemes)\n\nshinyUI(fluidPage(theme = shinytheme(\"cerulean\"),\n  titlePanel(\"Next Word Prediction Applet\"),\n  \n  sidebarLayout(\n    sidebarPanel(\n      h2(\"Instructions\"),\n      p(strong(\"1) Enter a word or sentence and click PREDICT\")),\n      p(strong(\"2) Update the sentence using any of the 3 UPDATE buttons. Alternatively, type in some extra text. \n               The word-cloud may also offer some additional matches\")),\n      p(strong(\"3) Click PREDICT again\")),\n      p(strong(\"4) If the word isn't in the dictionary, choose between CHOOSE ALT. or KEEP AS IS\")),\n        \n      \n      h4(\"Prediction\"),\n      actionButton(\"Predict\", label = strong(\"PREDICT\")),\n      actionButton(\"Update1\", label = \"Update 1\"),\n      actionButton(\"Update2\", label = \"Update 2\"),\n      actionButton(\"Update3\", label = \"Update 3\"),\n      h4(\"If word not found\"),\n      actionButton(\"Alt\", label = \"Chose alt.\"),\n      actionButton(\"Keep\", label = \"Keep as is\")\n    \n    ),\n    \n    mainPanel(\n      textInput(\"Sentence\", label = \"Sentence\", width = '100%'),\n      h2(\"Predictions\"),\n      textOutput(\"text1\"),\n      textOutput(\"text2\"),\n      textOutput(\"text3\"),\n      h2(\"Word-cloud\"),\n      plotOutput(\"plot\"),\n      HTML('<footer><i>\n              This Shiny App has been developed and submitted in accordance with the requirements for the Coursera Data\nScience Capstone Project (Rob Harrand 2016)\n           </i></footer>')\n      )\n  )\n))\n\n\n",
+    "created" : 1459512029411.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "232944070",
+    "id" : "FD00515B",
+    "lastKnownWriteTime" : 1461053925,
+    "path" : "C:/Users/rob.harrand/Desktop/WORK/Coursera/Module 10 - Capstone/Shiny/ui.R",
+    "project_path" : "Shiny/ui.R",
+    "properties" : {
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "type" : "r_source"
+}

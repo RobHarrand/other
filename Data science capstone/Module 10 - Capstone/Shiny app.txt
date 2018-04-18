@@ -1,0 +1,15 @@
+Shiny app
+---------
+
+* User enters a phrase and clicks 'predict'
+* Up to the top five predictions are displayed
+* The user selects one and the phrase is updated. The user can then click 'predict' again
+
+
+If a word isn't recognised but is in the dictionary, it'll use the KN-unigram bit
+If a word isn't recognised and isn't in the dictionary, it'll say 'did you mean?' and offer the nearest match
+
+In that case, the user can select the nearest match and update the phase
+If they click no (for example, they've entered a name), it'll use the KN-unigram bit
+
+

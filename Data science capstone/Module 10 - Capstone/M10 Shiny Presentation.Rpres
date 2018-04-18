@@ -1,0 +1,65 @@
+Capstone Presentation
+========================================================
+author: RH
+date: 19/04/16
+#font-family: 'Risque'
+transition: concave
+
+<small>
+This presentation provides an overview of the background, challenges, solution and end result of the Data Science specialisation capstone. This project was developed between [Johns Hopkins University](https://www.coursera.org/jhu) (via [Coursera](https://www.coursera.org/specializations/jhu-data-science)) and [Swiftkey](https://swiftkey.com/en).</small>
+
+<img src="JH.jpg" />
+<img src="coursera.png" width="401" height="80" />
+<img src="swiftkey.png" width="230" height="47" />
+
+
+The challenge and chosen techniques
+========================================================
+
+<small>The aim of the Capstone project is to develop a next-word prediction algorithm in the form of a Shiny app (with the trade-off between accuracy and speed taken into account). The steps taken were,
+
+- Data were tidied (punctuation removed, converted to lowercase, swearwords removed, etc). Note that stopwords were *not* removed from the corpus
+- Converted to ngrams (up to 5grams were used) 
+- An initial stupid backoff approach was developed with 1% of training data
+- An interpolation method was developed (with lambdas chosen using a validation set)
+- This was complemented with the Kneser-Ney smoothing method for when there are no bigram matches and a unigram must be selected
+</small>
+
+The solution
+========================================================
+
+<small>The Shiny app was developed to give the user a simple but effective (and interesting) next-word prediction tool.  As is good practice with all software developement, the app was tested for mispelt words, numeric entries, non-alphanumeric enteries, etc, to check for inputs that could crash the software</small>
+
+#### Resulting performance
+
+<small>The resulting algorithm had an accuracy of 63.2% when tested against a dedicated test set.  This was using a training set that constituted 20% of the original bodies of text.  The prediction was considered correct if either of the top 3 answers were correct, as these are offered to the end user.</small>
+
+<small>To increase the speed of the Shiny app, this percentage was dropped to 2%. The consequent accuracy fell to 60.6%, but it was decided that this small decrease in accuaracy was acceptable, given the significant increase in prediction speed (~10s -> ~1s for a 4-word sentence on an aging PC with 8GB RAM)</small>
+
+
+Flow-chart
+========================================================
+
+<img src="flowchart.gif" width="864px" height="648px" />
+
+
+How to use
+========================================================
+
+<small>Using the app is extremely straight-forward. Simply enter a sentence of any length, and then hit the 'predict' button.  If the algorithm can figure out some options, at least one and up to three are shown. The user can select any of them, and the sentence will be updated.  If the algorithm cannot recognise the word entered, a next-best match is suggested.  </small>
+
+<small>In the case of many next-word options, a wordcloud is generated. Note that this is for graphical representation only, and the choice is still made from the 'top 3' list.</small>
+
+### Additional information
+<small>
+- The relevant R code is available <a href="https://github.com/RobHarrand/Capstone" target="_blank">here</a>
+- The milestone report is available <a href="http://rpubs.com/tentotheminus9/161772" target="_blank">here</a>
+- The app can be viewed <a href="https://robharrand.shinyapps.io/Capstone_Shiny/" target="_blank">here</a>
+</small>
+
+
+
+
+
+
+

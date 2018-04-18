@@ -1,0 +1,11 @@
+name: leeds_cycle_app
+title: leeds_cycle_app
+account: robharrand
+server: shinyapps.io
+appId: 211214
+bundleId: 969790
+url: https://robharrand.shinyapps.io/leeds_cycle_app/
+when: 1504708884.00764
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: PLAN_CYCLE_ROUTES.shp

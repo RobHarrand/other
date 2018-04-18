@@ -1,0 +1,18 @@
+{
+    "contents" : "library(shiny)\nrunApp(\"Shiny\")\n\n\nlibrary(rsconnect)\nrsconnect::setAccountInfo(name='robharrand', token='2B220EC29DBE52B0573AAD7F50F00A27', secret='U2kdqwz04J3smyL+fXLwRcJ9VP2GteuCQQBiODs9')\n",
+    "created" : 1459258775970.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "544120260",
+    "id" : "33FC4309",
+    "lastKnownWriteTime" : 1461059458,
+    "path" : "C:/Users/rob.harrand/Desktop/WORK/Coursera/Module 10 - Capstone/Shiny/Run.R",
+    "project_path" : "Shiny/Run.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "type" : "r_source"
+}
